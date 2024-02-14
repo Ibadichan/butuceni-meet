@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <style>
+      .columns {
+        display: flex;
+      }
+      .video {
+        display: block;
+        margin-right: 30px;
+        transform: rotateY(180deg);
+      }
+
+      #form {
+        max-width: 50%;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Ванькин видео-чат</h1>
+    <p class="columns">
+      <video class="video" id="local-video">
+        Your browser does not support the video tag.
+      </video>
+      <video class="video" id="remote-video">
+        Your browser does not support the video tag.
+      </video>
+    </p>
+    <form id="form">
+      <fieldset>
+        <legend>Детали подключения:</legend>
+        <p>
+          Ваш номер:
+          <b id="my-id"></b>
+        </p>
+
+        <p>
+          <label for="receiver">Введите номер абонента:</label>
+          <input type="text" id="receiver" />
+        </p>
+
+        <button type="submit">Позвонить</button>
+      </fieldset>
+    </form>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script>
+      function makeId(length) {
+        let result = '';
+        const characters =
+          'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        const charactersLength = characters.length;
+        let counter = 0;
+        while (counter < length) {
+          result += characters.charAt(
+            Math.floor(Math.random() * charactersLength)
+          );
+          counter += 1;
+        }
+        return result;
+      }
+
+      let localMediaStream;
+      let remoteMediaStream;
+
+      const peer = new Peer(`${makeId(4).toLowerCase()}`, {
+        debug: 3,
+      });
+
+      peer.on('open', () => {
+        const myId = document.getElementById('my-id');
+        myId.textContent = peer.id;
+      });
+
+      peer.on('call', (call) => {
+        call.answer(localMediaStream);
+
+        call.on('stream', (stream) => {
+          const video = document.getElementById('remote-video');
+          remoteMediaStream = stream;
+          video.srcObject = stream;
+          video.onloadedmetadata = () => {
+            video.play();
+          };
+        });
+      });
+
+      const form = document.getElementById('form');
+
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const receiverId = document.getElementById('receiver').value;
+        const call = peer.call(receiverId, localMediaStream);
+
+        call.on('stream', (stream) => {
+          const video = document.getElementById('remote-video');
+          remoteMediaStream = stream;
+          video.srcObject = stream;
+          video.onloadedmetadata = () => {
+            video.play();
+          };
+        });
+      });
+
+      const constraints = {
+        audio: true,
+        video: true,
+      };
+
+      navigator.mediaDevices
+        .getUserMedia(constraints)
+        .then((mediaStream) => {
+          const video = document.getElementById('local-video');
+          localMediaStream = mediaStream;
+          video.srcObject = mediaStream;
+          video.onloadedmetadata = () => {
+            video.play();
+          };
+          video.muted = true;
+        })
+        .catch((err) => {
+          // always check for errors at the end.
+          console.error(`${err.name}: ${err.message}`);
+        });
+    </script>
+  </body>
+</html>
+
